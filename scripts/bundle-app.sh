@@ -14,4 +14,8 @@ if command -v cargo-tauri >/dev/null; then
 else
   npx --yes @tauri-apps/cli@2 build --bundles app --config "$CONF"
 fi
-echo "App em target/release/bundle/macos/ (na raiz do workspace)"
+# o Tauri só assina os binários (linker-signed); sem assinar o pacote, `codesign -v` falha e o Gatekeeper reclama
+cd ../..
+codesign --force --deep -s - "target/release/bundle/macos/Anthive Novo.app"
+echo "App em target/release/bundle/macos/ (na raiz do workspace). Para instalar:"
+echo "  ditto \"target/release/bundle/macos/Anthive Novo.app\" \"/Applications/Anthive Novo.app\""

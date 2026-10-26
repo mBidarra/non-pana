@@ -13,6 +13,8 @@ const en = {
   'como você chama o projeto': 'what you call the project', 'A pasta é criada se não existir. O projeto aparece no Anthive e em Tasks.': 'The folder is created if missing. The project shows up in Anthive and in Tasks.',
   'Extrair material de novo': 'Extract material again', 'Extrair': 'Extract', 'Extraindo o material de novo…': 'Extracting the material again…',
   'Baixa os links e arquivos outra vez e troca o material atual (inclusive o que foi colado à mão). Vídeos do YouTube passam a ter a transcrição. As mensagens da thread não mudam.': 'Downloads the links and files again and replaces the current material (including pasted text). YouTube videos get their transcript. The thread messages do not change.',
+  'espaços': 'spaces', 'espaço': 'space', 'filtro': 'filter', 'panorama': 'overview', 'agente': 'agent', 'threads': 'threads', 'sem Li': 'not read', 'ignoradas': 'ignored',
+  'na fila': 'queued', 'respondendo': 'replying', 'falharam': 'failed', 'material': 'material', 'vínculos': 'links', 'memória': 'memory',
   'expandir': 'expand', 'recolher': 'collapse', 'palavras': 'words',
   'O que só foi ignorado': 'What was only ignored', 'O que eu tenho mais lido': 'What I read most', '% de FOMO': 'FOMO %',
 };

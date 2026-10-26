@@ -12,7 +12,7 @@ const state = { feed: {}, tasks: {}, obs: {}, dev: {}, view: {} };
 let current = { name: '', st: {} };
 
 const NAV = [
-  ['#/feed', '🌐', 'Rede Social'], ['#/tasks/today', '☑', 'Tasks'], ['#/obs', '👁', 'Observabilidade'], ['#/dev', '⌘', 'Desenvolvimento'],
+  ['#/feed', '◉', 'Rede Social', 'sp-feed'], ['#/tasks/today', '☑', 'Tasks', 'sp-tasks'], ['#/obs', '◎', 'Observabilidade', 'sp-obs'], ['#/dev', '⌘', 'Desenvolvimento', 'sp-dev'],
 ];
 
 function sidebar() {
@@ -22,11 +22,12 @@ function sidebar() {
   if (hash.startsWith('#/t/') || hash.startsWith('#/st/')) hash = '#/feed';
   mount(nav, 
     h('div', { class: 'brand' }, h('span', { class: 'logo' }, '⬡'), h('span', {}, 'Anthive ', h('strong', {}, 'Novo'))),
-    NAV.map(([href, icon, label]) => h('a', { href, class: hash.startsWith(href.split('/').slice(0, 2).join('/')) ? 'on' : '' }, h('span', { class: 'ico' }, icon), t(label))),
+    h('div', { class: 'nav-label' }, t('espaços')),
+    NAV.map(([href, icon, label, sp]) => h('a', { href, class: `${sp} ${hash.startsWith(href.split('/').slice(0, 2).join('/')) ? 'on' : ''}` }, h('span', { class: 'ico' }, icon), t(label))),
     h('div', { class: 'grow' }),
     h('button', { class: 'nav-btn', onclick: palette, title: '⌘K' }, h('span', { class: 'ico' }, '⌕'), t('Buscar'), h('kbd', {}, '⌘K')),
     h('a', { href: '#/journal', class: hash.startsWith('#/journal') ? 'on' : '' }, h('span', { class: 'ico' }, '✦'), t('Diário do agente')),
-    h('a', { href: '#/trash', class: hash.startsWith('#/trash') ? 'on' : '' }, h('span', { class: 'ico' }, '🗑'), t('Lixeira')),
+    h('a', { href: '#/trash', class: hash.startsWith('#/trash') ? 'on' : '' }, h('span', { class: 'ico' }, '⌫'), t('Lixeira')),
     h('a', { href: '#/settings', class: hash.startsWith('#/settings') ? 'on' : '' }, h('span', { class: 'ico' }, '⚙'), t('Configurações')));
 }
 

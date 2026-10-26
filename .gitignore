@@ -1,0 +1,4 @@
+/target
+crates/novo-app/binaries/
+crates/novo-app/gen/
+.DS_Store

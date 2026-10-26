@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "A interface é servida pelo novod; ela não usa a API do Tauri.",
+  "windows": ["main", "compose"],
+  "permissions": []
+}

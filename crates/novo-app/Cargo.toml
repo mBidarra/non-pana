@@ -1,0 +1,15 @@
+[package]
+name = "novo-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow = "1.0.104"
+novo-core = { version = "0.1.0", path = "../novo-core" }
+serde_json = "1.0.154"
+tauri = { version = "2.12.5", features = ["tray-icon", "image-png"] }
+tauri-plugin-global-shortcut = "2.4.1"
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }

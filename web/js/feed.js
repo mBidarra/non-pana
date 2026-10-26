@@ -116,8 +116,19 @@ export function threadMenu(anchor, id, { onChange, isSuper = false, parent = nul
     items.push({ label: '✎ Renomear', run: async () => { const v = await prompt('Renomear superthread'); if (v) { await rpc('superthread.rename', { id, title: v }).catch(errorToast); onChange?.(); } } });
   }
   if (parent) items.push({ label: '⇱ Desmontar (tirar da superthread)', run: async () => { await rpc('superthread.disassemble', { block: id }).then(() => toast('Peça devolvida.')).catch(errorToast); onChange?.(); } });
+  if (!isSuper) items.push({ label: `⟳ ${t('Extrair material de novo')}`, run: () => reextract(id, onChange) });
   if (!isSuper) items.push({ label: '📌 Fixar / desafixar', run: async () => { const v = await rpc('thread.get', { id }); await rpc('thread.pin', { id, pinned: !v.pinned }).catch(errorToast); onChange?.(); } });
   menu(anchor, items);
+}
+
+async function reextract(id, onChange) {
+  const ok = await confirmBox(t('Extrair material de novo'), t('Baixa os links e arquivos outra vez e troca o material atual (inclusive o que foi colado à mão). Vídeos do YouTube passam a ter a transcrição. As mensagens da thread não mudam.'), t('Extrair'));
+  if (!ok) return;
+  try {
+    await rpc('thread.reextract', { id });
+    toast(t('Extraindo o material de novo…'));
+    onChange?.();
+  } catch (e) { errorToast(e); }
 }
 
 async function deleteThread(id, onChange) {

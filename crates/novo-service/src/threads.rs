@@ -286,6 +286,31 @@ pub async fn set_agent(svc: &Service, id: &str, mode: AgentMode, profile: Option
     get(svc, id)
 }
 
+/// Extrai de novo o material de links e arquivos (ex.: vídeo do YouTube lido antes de existir a transcrição).
+/// Substitui o snapshot, inclusive o colado à mão; não chama o agente se a thread já tem resposta.
+pub async fn reextract(svc: &Service, id: &str) -> Result<ThreadView> {
+    let _w = svc.write.lock().await;
+    let st = svc.thread(id)?;
+    let mut n = 0;
+    for (i, m) in st.material.iter().enumerate() {
+        if !(m.url.starts_with("http://") || m.url.starts_with("https://") || m.url.starts_with("file://")) {
+            continue;
+        }
+        let mut nm = m.clone();
+        nm.status = "pending".into();
+        nm.error = None;
+        svc.vault.append_event(id, EventBody::MaterialUpdate { index: i, material: nm }, time::now())?;
+        jobs::enqueue(svc, JobKind::Extract { thread: id.into(), index: i })?;
+        n += 1;
+    }
+    if n == 0 {
+        bail!("esta thread não tem link nem arquivo para extrair");
+    }
+    drop(_w);
+    svc.emit("thread", id);
+    get(svc, id)
+}
+
 /// RF-AGT-13: tentar de novo depois de uma falha.
 pub async fn retry(svc: &Service, id: &str) -> Result<ThreadView> {
     let _w = svc.write.lock().await;

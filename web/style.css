@@ -108,6 +108,12 @@ main > * { max-width: 720px; margin-left: auto; margin-right: auto; }
 .post-head { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
 .post-body { overflow-wrap: anywhere; }
 .post-body p { margin: 4px 0; }
+.long-preview { -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+.long-post > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 8px; border: 1px solid var(--line-2); border-radius: 999px; }
+.long-post > summary::-webkit-details-marker { display: none; }
+.long-post > summary::before { content: '▸'; color: var(--muted); }
+.long-post[open] > summary::before { content: '▾'; }
+.long-post[open] > summary { margin-bottom: 6px; }
 .post-body pre, .briefing { background: var(--surface-2); padding: 8px; border-radius: 8px; overflow-x: auto; white-space: pre-wrap; font-size: 13px; }
 blockquote { margin: 6px 0; padding: 4px 10px; border-left: 3px solid var(--line-2); color: var(--text-2); }
 .quotes blockquote { font-style: italic; }

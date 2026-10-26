@@ -34,6 +34,17 @@ novo open                         # abre a interface no navegador
 
 O app (`Novo.app`) é empacotado com `npx @tauri-apps/cli build --bundles app` dentro de `crates/novo-app` (veja `scripts/bundle-app.sh`).
 
+## Vídeos do YouTube
+
+A página de um vídeo só traz a descrição. Para o agente ler o que foi falado, o `novod` pede a transcrição a um serviço local (`services/yt-transcript`, Python, só em 127.0.0.1) e guarda o texto como material da thread, não no chat:
+
+```bash
+services/yt-transcript/install.sh   # venv em ~/.local/share/novo-yt-transcript + LaunchAgent com.anthive.novo-yt
+curl -s -X POST 127.0.0.1:8790/transcript -d '{"url":"https://youtu.be/<id>"}'
+```
+
+Ele tenta a `youtube-transcript-api` e, se falhar, o `yt-dlp`; prefere legenda feita por pessoa e guarda cache em `~/Library/Caches/novo-yt-transcript`. Sem o serviço, o material diz que a transcrição faltou. Endereço em `config.toml` (`[ingest] transcript_url`, vazio desliga). O YouTube bloqueia IPs de nuvem com frequência: o serviço foi pensado para rodar no seu Mac. Quando ele parar de funcionar, rode o `install.sh` de novo para atualizar as bibliotecas.
+
 ## Agentes
 
 Por padrão, o agente é o próprio Claude Code (`claude -p`) na sua assinatura, sem ferramentas e sem sessão salva, com o contexto montado a partir do JSONL da thread e das **caixas de memória** das threads que você relacionou. Outros perfis ficam em `~/.anthive/novo/profiles.toml` ou na tela Configurações:

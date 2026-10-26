@@ -115,3 +115,13 @@ Métodos (nomes estáveis): ver `crates/novo-service/src/rpc.rs` (tabela `METHOD
   snapshot do Anthive só lista projetos com agentes vivos; o registro dá os demais.
 - O app Tauri carrega a interface do próprio `novod` (URL externa `http://127.0.0.1:<porta>/#token=…`), em vez de
   embutir uma segunda cópia; o `web/` é a mesma interface do navegador.
+- Transcrição do YouTube por um serviço Python separado (`services/yt-transcript`), chamado pelo `novod` na extração,
+  e não pelo agente: o agente roda sem ferramentas. Fica fora do Rust porque as bibliotecas que leem legendas mudam
+  quando o YouTube muda (PoToken, bloqueio de IP), e atualizar é um `pip install -U`. A descrição do vídeo vem do
+  `og:description`: o texto "legível" da página do YouTube é o JavaScript dela. `context.material_chars` subiu de
+  40 mil para 120 mil caracteres, porque uma transcrição de 1 h tem ~65 mil.
+- Mensagens com mais de 800 palavras (`LONG_POST_WORDS`, `web/js/ui.js`) chegam recolhidas: um trecho das primeiras
+  80 palavras e um acordeão (`<details>`) que monta o markdown inteiro só quando abre.
+- Espaço Desenvolvimento cria projetos (`dev.create`) do mesmo jeito que a tela inicial do Anthive (`createProject`):
+  mesma regra de id, caminho real, pasta criada se faltar; só pastas dentro da home. A mesma pasta devolve o projeto
+  que já existe (`existing: true`).

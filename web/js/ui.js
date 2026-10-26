@@ -78,6 +78,35 @@ export function md(src) {
   return html;
 }
 
+/** Acima disto, a mensagem chega recolhida: um trecho e um acordeão para expandir. */
+export const LONG_POST_WORDS = 800;
+
+/** Corpo de uma mensagem em markdown; mensagens longas mostram as primeiras palavras e abrem num acordeão. */
+export function postBody(src, cls = 'post-body') {
+  const text = String(src ?? '');
+  const words = text.match(/\S+/g) || [];
+  if (words.length <= LONG_POST_WORDS) return h('div', { class: cls, html: md(text) });
+  // o trecho corta no fim da 80ª palavra, mantendo as quebras de linha do original
+  const re = /\S+/g;
+  let end = 0;
+  for (let i = 0; i < 80 && re.exec(text); i++) end = re.lastIndex;
+  const preview = h('div', { class: `${cls} long-preview`, html: md(`${text.slice(0, end)} …`) });
+  const hint = h('span', { class: 'muted small' }, t('expandir'));
+  const full = h('div', { class: cls });
+  const box = h('details', { class: 'long-post' },
+    h('summary', {}, h('span', { class: 'badge' }, `${words.length.toLocaleString('pt-BR')} ${t('palavras')}`), ' ', hint),
+    full);
+  box.addEventListener('toggle', () => {
+    // o markdown inteiro só é montado na primeira vez que abre
+    if (box.open && !full.childNodes.length) full.innerHTML = md(text);
+    preview.hidden = box.open;
+    hint.textContent = t(box.open ? 'recolher' : 'expandir');
+    if (!box.open) wrap.scrollIntoView({ block: 'nearest' });
+  });
+  const wrap = h('div', { class: 'long' }, preview, box);
+  return wrap;
+}
+
 export function ago(ts) {
   const d = (Date.now() - new Date(ts).getTime()) / 1000;
   if (d < 60) return 'agora';

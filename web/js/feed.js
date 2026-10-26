@@ -1,6 +1,6 @@
 // Espaço Rede Social: compositor, feed, thread, superthread, menu ⋯, Relacionar e chat sobre a thread.
 import { rpc, attachmentUrl } from './api.js';
-import { h, mount, md, unescapeMd, ago, toast, errorToast, modal, confirmBox, prompt, menu, KIND, KIND_LABEL, kindOf, t } from './ui.js';
+import { h, mount, md, postBody, unescapeMd, ago, toast, errorToast, modal, confirmBox, prompt, menu, KIND, KIND_LABEL, kindOf, t } from './ui.js';
 
 let profiles = [];
 export async function loadProfiles() {
@@ -220,7 +220,7 @@ function post(p, threadId, onReply) {
       h('span', { class: 'muted small' }, ` · ${ago(p.ts)}`),
       h('div', { class: 'grow' }),
       h('button', { class: 'link small', onclick: () => onReply(p) }, t('Responder'))),
-    h('div', { class: 'post-body', html: md(p.body) }),
+    postBody(p.body),
     p.quotes?.length ? h('div', { class: 'quotes' }, p.quotes.map((q) => h('blockquote', {}, `“${unescapeMd(q)}”`))) : null);
 }
 
@@ -315,7 +315,7 @@ export async function renderSuperthread(main, id, state) {
     const body = b.kind === 'thread'
       ? h('details', { open: v.blocks.length <= 3 },
         h('summary', {}, `${KIND[b.card.kind]} ${b.card.title}`, h('span', { class: 'muted small' }, ` · ${ago(b.card.created)} · ${b.card.read ? '✓ Li' : 'sem Li'}`)),
-        h('div', { class: 'block-body' }, h('a', { href: `#/t/${bid}`, class: 'small' }, 'abrir thread'), b.posts.slice(0, 6).map((p) => h('div', { class: `post mini ${p.is_agent ? 'agent' : 'mine'}`, html: md(p.body) }))))
+        h('div', { class: 'block-body' }, h('a', { href: `#/t/${bid}`, class: 'small' }, 'abrir thread'), b.posts.slice(0, 6).map((p) => h('div', { class: `post mini ${p.is_agent ? 'agent' : 'mine'}` }, postBody(p.body, '')))))
       : h('details', {}, h('summary', {}, `⧉ ${b.title}`, h('span', { class: 'muted small' }, ` · ${b.blocks.length} blocos`)),
         h('div', { class: 'block-body' }, h('p', {}, b.abstract || ''), h('a', { href: `#/st/${bid}`, class: 'small' }, 'abrir superthread')));
     const more = h('button', { class: 'icon', 'aria-label': 'Mais ações', onclick: () => threadMenu(more, bid, { onChange: refresh, parent: id, isSuper: b.kind !== 'thread' }) }, '⋯');
@@ -341,7 +341,7 @@ export async function renderSuperthread(main, id, state) {
       h('h3', {}, `Blocos (${v.blocks.length})`),
       blocks,
       h('h3', {}, 'Conversa da superthread'),
-      v.conversation.map((p) => h('div', { class: `post ${p.author === 'voce' ? 'mine' : 'agent'}` }, h('div', { class: 'post-head' }, h('strong', {}, p.author === 'voce' ? 'você' : `✦ ${p.author.replace('profile:', '')}`), h('span', { class: 'muted small' }, ` · ${ago(p.ts)}`)), h('div', { class: 'post-body', html: md(p.body) }))),
+      v.conversation.map((p) => h('div', { class: `post ${p.author === 'voce' ? 'mine' : 'agent'}` }, h('div', { class: 'post-head' }, h('strong', {}, p.author === 'voce' ? 'você' : `✦ ${p.author.replace('profile:', '')}`), h('span', { class: 'muted small' }, ` · ${ago(p.ts)}`)), postBody(p.body))),
       h('div', { class: 'reply-box' }, ask, h('div', { class: 'compose-bar' }, h('div', { class: 'grow' }),
         h('button', { class: 'primary', onclick: async () => { if (!ask.value.trim()) return; await rpc('superthread.converse', { id, body: ask.value, agent: true }).catch(errorToast); ask.value = ''; toast('O agente está comparando as threads…'); refresh(); } }, 'Perguntar')))));
 }
@@ -358,9 +358,9 @@ export async function openChat(target) {
     log.innerHTML = '';
     let pi = 0;
     for (const e of c.entries) {
-      if (e.type === 'user') log.append(h('div', { class: 'post mine' }, h('div', { class: 'post-body', html: md(e.text) })));
+      if (e.type === 'user') log.append(h('div', { class: 'post mine' }, postBody(e.text)));
       if (e.type === 'agent') {
-        log.append(h('div', { class: 'post agent' }, h('div', { class: 'post-head' }, h('strong', {}, '✦ agente'), h('span', { class: 'muted small' }, ` · ${e.model}`)), h('div', { class: 'post-body', html: md(e.text) }),
+        log.append(h('div', { class: 'post agent' }, h('div', { class: 'post-head' }, h('strong', {}, '✦ agente'), h('span', { class: 'muted small' }, ` · ${e.model}`)), postBody(e.text),
           e.proposals.map((p) => { const idx = pi++; return h('div', { class: 'proposal' }, h('span', {}, `${p.kind === 'task' ? '☐ Tarefa' : '🔗 Relação'}: ${p.title} `, h('span', { class: 'muted small' }, p.reason)),
             h('button', { onclick: async () => { const r = await rpc('chat.apply', { id: c.id, index: idx }).catch(errorToast); if (r) toast(`Aplicado: ${r.result}`); } }, 'Aplicar')); })));
       }
@@ -372,7 +372,7 @@ export async function openChat(target) {
   const send = async () => {
     if (!input.value.trim()) return;
     const text = input.value; input.value = '';
-    log.append(h('div', { class: 'post mine' }, h('div', { class: 'post-body', html: md(text) })), h('div', { class: 'muted small typing' }, 'o agente está pensando…'));
+    log.append(h('div', { class: 'post mine' }, postBody(text)), h('div', { class: 'muted small typing' }, 'o agente está pensando…'));
     try { chat = await rpc('chat.send', { id: chat.id, text }); } catch (e) { errorToast(e); chat = await rpc('chat.get', { id: chat.id }); }
     draw(chat);
   };

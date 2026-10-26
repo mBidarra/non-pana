@@ -75,6 +75,7 @@ pub const METHODS: &[(&str, &str)] = &[
     ("queue.list", "jobs na fila"),
     ("dev.status", "projetos e agentes do Anthive"),
     ("dev.open", "abre um projeto no Anthive"),
+    ("dev.create", "cria um projeto no Anthive (pasta + registro)"),
     ("dev.note", "thread vira nota do Anthive"),
     ("dev.briefing", "briefing que iria para o agente"),
     ("dev.delegate", "delega tarefa a um agente do Anthive"),
@@ -258,6 +259,7 @@ pub async fn call(svc: &Arc<Service>, method: &str, p: Value) -> Result<Value> {
         // ---------------------------------------------------------- Desenvolvimento
         "dev.status" => dev::status(s).await?,
         "dev.open" => dev::open(s, &get::<String>(&p, "dir")?)?,
+        "dev.create" => dev::create(s, &get::<String>(&p, "name")?, opt::<String>(&p, "dir").as_deref()).await?,
         "dev.note" => dev::note(s, &get::<String>(&p, "item")?, &get::<String>(&p, "project")?).await?,
         "dev.briefing" => json!({"briefing": dev::briefing(s, &get::<String>(&p, "task")?)?}),
         "dev.delegate" => dev::delegate(s, &get::<String>(&p, "task")?, &opt::<String>(&p, "agent").unwrap_or_default(), opt(&p, "confirm").unwrap_or(false)).await?,

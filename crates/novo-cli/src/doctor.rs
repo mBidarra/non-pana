@@ -32,6 +32,8 @@ pub async fn checks(vault: &Vault) -> Vec<Check> {
     v.push(Check { name: "Anthive", ok: anthive.is_some(), critical: false, detail: anthive.unwrap_or_else(|| "não encontrado: o espaço Desenvolvimento fica vazio".into()) });
     let chrome = novo_ingest::chrome_binary();
     v.push(Check { name: "Chrome (fallback de extração)", ok: chrome.is_some(), critical: false, detail: chrome.map(|p| p.display().to_string()).unwrap_or_else(|| "não encontrado".into()) });
+    let yt = novo_ingest::transcript_health(&vault.config().ingest).await;
+    v.push(Check { name: "Transcrição do YouTube", ok: yt.is_ok(), critical: false, detail: match yt { Ok(()) => vault.config().ingest.transcript_url, Err(e) => format!("{e:#} — `services/yt-transcript/install.sh`") } });
     for p in novo_agent::load_profiles(vault) {
         let ok = p.key.as_deref().map(|k| novo_agent::secrets::resolve(k).is_ok()).unwrap_or(true);
         v.push(Check { name: "Perfil de agente", ok, critical: false, detail: format!("{} ({:?}, {}){}", p.name, p.engine, p.model, if ok { "" } else { " — chave ausente" }) });

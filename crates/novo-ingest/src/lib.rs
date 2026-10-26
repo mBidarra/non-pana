@@ -89,6 +89,9 @@ pub async fn fetch(client: &reqwest::Client, url: &str, cfg: &Ingest) -> Result<
     } else {
         bail!("tipo de conteúdo não suportado: {ctype}");
     };
+    if is_youtube(url) {
+        with_transcript(client, url, cfg, &mut out).await;
+    }
     out.url = url.to_string();
     out.canonical_url = canonical_url(&final_url).or_else(|| canonical_url(url));
     if out.site.is_none() {
@@ -98,6 +101,87 @@ pub async fn fetch(client: &reqwest::Client, url: &str, cfg: &Ingest) -> Result<
         out.lang = detect_lang(&out.markdown);
     }
     Ok(out)
+}
+
+/// Links de vídeo do YouTube: a página só traz a descrição; o que interessa é o que foi falado.
+pub fn is_youtube(url: &str) -> bool {
+    let Ok(u) = url::Url::parse(url) else { return false };
+    let host = u.host_str().unwrap_or("").trim_start_matches("www.").trim_start_matches("m.").trim_start_matches("music.");
+    match host {
+        "youtu.be" => u.path().len() > 1,
+        "youtube.com" => u.path() == "/watch" || ["/shorts/", "/live/", "/embed/"].iter().any(|p| u.path().starts_with(p)),
+        _ => false,
+    }
+}
+
+#[derive(Deserialize, Debug, PartialEq)]
+pub struct Transcript {
+    pub language: Option<String>,
+    #[serde(default)]
+    pub is_generated: bool,
+    #[serde(default)]
+    pub words: usize,
+    pub text: String,
+}
+
+/// Pede a transcrição ao serviço local (`services/yt-transcript`, POST /transcript).
+pub async fn youtube_transcript(client: &reqwest::Client, url: &str, cfg: &Ingest) -> Result<Transcript> {
+    if cfg.transcript_url.trim().is_empty() {
+        bail!("serviço de transcrição desligado (ingest.transcript_url vazio)");
+    }
+    let body = serde_json::to_vec(&serde_json::json!({ "url": url }))?;
+    let resp = client
+        .post(cfg.transcript_url.trim())
+        .header(reqwest::header::CONTENT_TYPE, "application/json")
+        .timeout(Duration::from_secs(cfg.transcript_timeout_secs))
+        .body(body)
+        .send()
+        .await
+        .with_context(|| format!("serviço de transcrição fora do ar ({})", cfg.transcript_url))?;
+    let status = resp.status();
+    let bytes = resp.bytes().await?;
+    if !status.is_success() {
+        let msg = serde_json::from_slice::<serde_json::Value>(&bytes).ok().and_then(|v| v["error"].as_str().map(String::from)).unwrap_or_default();
+        bail!("transcrição: HTTP {} {msg}", status.as_u16());
+    }
+    let t: Transcript = serde_json::from_slice(&bytes).context("resposta do serviço de transcrição ilegível")?;
+    if t.text.trim().is_empty() {
+        bail!("transcrição vazia");
+    }
+    Ok(t)
+}
+
+/// O serviço de transcrição responde? (`novo doctor`): troca `/transcript` por `/health`.
+pub async fn transcript_health(cfg: &Ingest) -> Result<()> {
+    let url = cfg.transcript_url.trim();
+    if url.is_empty() {
+        bail!("desligado (ingest.transcript_url vazio)");
+    }
+    let health = format!("{}/health", url.trim_end_matches('/').trim_end_matches("/transcript"));
+    let resp = client(cfg)?.get(&health).timeout(Duration::from_secs(3)).send().await.with_context(|| format!("fora do ar em {url}"))?;
+    if !resp.status().is_success() {
+        bail!("HTTP {} em {health}", resp.status().as_u16());
+    }
+    Ok(())
+}
+
+/// Junta descrição e transcrição no material. Sem transcrição, o material diz por quê, para o agente não fingir que viu o vídeo.
+async fn with_transcript(client: &reqwest::Client, url: &str, cfg: &Ingest, out: &mut Extracted) {
+    // o texto "legível" da página do YouTube é o JavaScript dela; a descrição de verdade está no og:description
+    let desc = out.excerpt.clone().unwrap_or_default().trim().to_string();
+    match youtube_transcript(client, url, cfg).await {
+        Ok(t) => {
+            let origin = if t.is_generated { "automática" } else { "feita por pessoa" };
+            let lang = t.language.clone().unwrap_or_default();
+            out.markdown = format!("## Transcrição ({lang}, legenda {origin})\n\n{}\n\n## Descrição do vídeo\n\n{desc}\n", t.text.trim());
+            out.lang = Some(lang.chars().take(2).collect()).filter(|l: &String| !l.is_empty()).or(out.lang.take());
+            out.via = "youtube".into();
+            out.html = None;
+        }
+        Err(e) => {
+            out.markdown = format!("## Descrição do vídeo\n\n{desc}\n\n(Transcrição indisponível: {e:#}. Só a descrição acima foi lida.)\n");
+        }
+    }
 }
 
 fn looks_html(b: &[u8]) -> bool {
@@ -318,6 +402,60 @@ mod tests {
             _ => panic!(),
         }
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn youtube_links() {
+        for u in ["https://www.youtube.com/watch?v=A0kTUP7fWtk", "https://youtu.be/A0kTUP7fWtk", "https://m.youtube.com/watch?v=x", "https://www.youtube.com/shorts/abc"] {
+            assert!(is_youtube(u), "{u}");
+        }
+        for u in ["https://www.youtube.com/@canal", "https://youtu.be/", "https://exemplo.com/watch?v=x", "nada"] {
+            assert!(!is_youtube(u), "{u}");
+        }
+    }
+
+    /// Servidor de uma resposta só: devolve `body` com `ctype` para qualquer pedido.
+    async fn serve(status: &'static str, ctype: &'static str, body: String) -> std::net::SocketAddr {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            loop {
+                let Ok((mut s, _)) = listener.accept().await else { break };
+                let mut buf = [0u8; 4096];
+                let _ = s.read(&mut buf).await;
+                let resp = format!("HTTP/1.1 {status}\r\ncontent-type: {ctype}\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}", body.len());
+                let _ = s.write_all(resp.as_bytes()).await;
+            }
+        });
+        addr
+    }
+
+    #[tokio::test]
+    async fn youtube_material_is_the_transcript() {
+        let svc = serve("200 OK", "application/json", r#"{"language":"en-US","is_generated":false,"words":4,"text":"we have choices here"}"#.into()).await;
+        let cfg = Ingest { chrome_fallback: false, transcript_url: format!("http://{svc}/transcript"), ..Default::default() };
+        let c = client(&cfg).unwrap();
+        let mut e = extract_html(PAGE, "https://www.youtube.com/watch?v=A0kTUP7fWtk").unwrap();
+        with_transcript(&c, "https://www.youtube.com/watch?v=A0kTUP7fWtk", &cfg, &mut e).await;
+        assert_eq!(e.via, "youtube");
+        assert!(e.markdown.starts_with("## Transcrição (en-US, legenda feita por pessoa)\n\nwe have choices here"), "{}", e.markdown);
+        assert!(e.markdown.contains("## Descrição do vídeo\n\nComo mostrar valor antes do cadastro."), "a descrição é a do og: {}", e.markdown);
+        assert!(!e.markdown.contains("menu menu"), "nada do resto da página: {}", e.markdown);
+        assert_eq!(e.lang.as_deref(), Some("en"));
+    }
+
+    #[tokio::test]
+    async fn youtube_without_service_says_why() {
+        let svc = serve("404 Not Found", "application/json", r#"{"error":"transcrição indisponível: sem legendas"}"#.into()).await;
+        let cfg = Ingest { chrome_fallback: false, transcript_url: format!("http://{svc}/transcript"), ..Default::default() };
+        let c = client(&cfg).unwrap();
+        let mut e = extract_html(PAGE, "https://youtu.be/A0kTUP7fWtk").unwrap();
+        with_transcript(&c, "https://youtu.be/A0kTUP7fWtk", &cfg, &mut e).await;
+        assert_eq!(e.via, "html");
+        assert!(e.markdown.contains("Transcrição indisponível: transcrição: HTTP 404 transcrição indisponível: sem legendas"), "{}", e.markdown);
+        let off = Ingest { transcript_url: String::new(), ..cfg };
+        assert!(youtube_transcript(&c, "https://youtu.be/A0kTUP7fWtk", &off).await.is_err());
     }
 
     #[tokio::test]

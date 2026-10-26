@@ -56,6 +56,9 @@ pub struct Ingest {
     pub retries: u32,
     pub user_agent: String,
     pub chrome_fallback: bool,
+    /// Serviço local de transcrição (`services/yt-transcript`): links do YouTube viram o texto falado. Vazio desliga.
+    pub transcript_url: String,
+    pub transcript_timeout_secs: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -89,7 +92,7 @@ impl Default for Ignored {
 
 impl Default for ContextLimits {
     fn default() -> Self {
-        Self { box_tokens: 400, neighbor_hops: 1, max_hops: 2, max_boxes: 12, thread_chars: 24_000, material_chars: 40_000 }
+        Self { box_tokens: 400, neighbor_hops: 1, max_hops: 2, max_boxes: 12, thread_chars: 24_000, material_chars: 120_000 }
     }
 }
 
@@ -107,6 +110,8 @@ impl Default for Ingest {
             retries: 3,
             user_agent: "AnthiveNovo/0.1 (+https://github.com/andre2654/anthive)".into(),
             chrome_fallback: true,
+            transcript_url: "http://127.0.0.1:8790/transcript".into(),
+            transcript_timeout_secs: 120,
         }
     }
 }

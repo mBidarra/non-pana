@@ -62,6 +62,86 @@ pub async fn status(svc: &Service) -> Result<Value> {
     Ok(json!({"anthive": v, "synced": synced}))
 }
 
+/// O mesmo `slugify` do Anthive (`src/core/store.ts`): palavras sem acento juntas por hífen, até `max` caracteres.
+fn anthive_slug(s: &str, max: usize) -> String {
+    let plain: String = s.to_lowercase().chars().map(|c| match c {
+        'á' | 'à' | 'â' | 'ã' | 'ä' => 'a',
+        'é' | 'è' | 'ê' | 'ë' => 'e',
+        'í' | 'ì' | 'î' | 'ï' => 'i',
+        'ó' | 'ò' | 'ô' | 'õ' | 'ö' => 'o',
+        'ú' | 'ù' | 'û' | 'ü' => 'u',
+        'ç' => 'c',
+        'ñ' => 'n',
+        c if c.is_ascii_alphanumeric() => c,
+        _ => ' ',
+    }).collect();
+    let mut out: Vec<&str> = vec![];
+    for w in plain.split_whitespace() {
+        if !out.is_empty() && out.join("-").len() + 1 + w.len() > max {
+            break;
+        }
+        out.push(w);
+    }
+    let s: String = out.join("-").chars().take(max).collect();
+    if s.is_empty() { "nota".into() } else { s }
+}
+
+/// Cria um projeto no Anthive como a tela inicial dele (`createProject`): cria a pasta e grava no `projects.json`.
+/// Só aceita pastas dentro da home; a mesma pasta já registrada devolve o projeto existente.
+pub async fn create(svc: &Service, name: &str, dir: Option<&str>) -> Result<Value> {
+    let name = name.trim();
+    if name.is_empty() {
+        bail!("o projeto precisa de um nome");
+    }
+    let home = std::path::PathBuf::from(std::env::var("HOME").context("HOME não definido")?);
+    let raw = dir.map(str::trim).filter(|d| !d.is_empty()).map(String::from).unwrap_or_else(|| format!("~/Documents/{}", anthive_slug(name, 32)));
+    let path = match raw.strip_prefix('~') {
+        Some(rest) if rest.is_empty() || rest.starts_with('/') => home.join(rest.trim_start_matches('/')),
+        _ => std::path::PathBuf::from(&raw),
+    };
+    if !path.is_absolute() || path.components().any(|c| matches!(c, std::path::Component::ParentDir)) || !path.starts_with(&home) || path == home {
+        bail!("a pasta precisa ficar dentro de {} (recebi {raw})", home.display());
+    }
+    std::fs::create_dir_all(&path).with_context(|| format!("criar {}", path.display()))?;
+    // o Claude Code resolve links simbólicos antes de nomear as sessões: o Anthive guarda o caminho real
+    let cwd = std::fs::canonicalize(&path).unwrap_or(path).to_string_lossy().to_string();
+    let reg_path = anthive_home().join("projects.json");
+    let mut list = registry();
+    let existing = list.iter().find(|p| p["cwd"].as_str() == Some(cwd.as_str())).cloned();
+    let project = match existing.clone() {
+        Some(p) => p,
+        None => {
+            let ms = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_millis() as u64;
+            let mut id = anthive_slug(name, 32);
+            if list.iter().any(|p| p["id"].as_str() == Some(id.as_str())) {
+                let b36 = radix36(ms);
+                id = format!("{id}-{}", &b36[b36.len().saturating_sub(4)..]);
+            }
+            let p = json!({"id": id, "name": name, "cwd": cwd, "created": ms});
+            list.push(p.clone());
+            std::fs::create_dir_all(anthive_home())?;
+            novo_core::fsx::atomic_write(&reg_path, serde_json::to_string_pretty(&list)?.as_bytes())?;
+            p
+        }
+    };
+    let synced = status(svc).await?;
+    Ok(json!({"project": project, "existing": existing.is_some(), "anthive": synced["anthive"]}))
+}
+
+fn radix36(mut n: u64) -> String {
+    const D: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
+    let mut out = vec![];
+    loop {
+        out.push(D[(n % 36) as usize]);
+        n /= 36;
+        if n == 0 {
+            break;
+        }
+    }
+    out.reverse();
+    String::from_utf8(out).unwrap()
+}
+
 /// Aspas simples do shell POSIX: nada dentro delas é interpretado.
 fn sh_quote(s: &str) -> String {
     format!("'{}'", s.replace('\'', "'\\''"))
@@ -206,6 +286,16 @@ pub fn briefing(svc: &Service, task: &str) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn slug_like_anthive() {
+        assert_eq!(super::anthive_slug("Pesquisa de Carreira AI", 32), "pesquisa-de-carreira-ai");
+        assert_eq!(super::anthive_slug("Ação!! já", 32), "acao-ja");
+        assert_eq!(super::anthive_slug("um nome bem comprido que passa do limite", 16), "um-nome-bem");
+        assert_eq!(super::anthive_slug("???", 32), "nota");
+        assert_eq!(super::radix36(35), "z");
+        assert_eq!(super::radix36(36), "10");
+    }
+
     #[test]
     fn sh_quote_keeps_everything_literal() {
         let dir = "/tmp/a b'$(touch NOVO_PWNED)\"`id`";

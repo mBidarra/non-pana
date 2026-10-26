@@ -1,12 +1,29 @@
 // Espaço Desenvolvimento (spec 4.8): o Anthive como está, lido por `anthive status --json`.
 import { rpc } from './api.js';
-import { h, mount, toast, errorToast, ago, t } from './ui.js';
+import { h, mount, toast, errorToast, ago, t, modal } from './ui.js';
+
+/** Novo projeto do Anthive: o mesmo formulário da tela inicial dele (nome e pasta, criada se faltar). */
+async function newProject(refresh) {
+  const name = h('input', { type: 'text', class: 'wide', placeholder: t('como você chama o projeto') });
+  const dir = h('input', { type: 'text', class: 'wide', placeholder: '~/Documents/<nome>' });
+  const body = h('div', { class: 'form' },
+    h('label', {}, t('Nome'), name),
+    h('label', {}, t('Pasta'), dir),
+    h('p', { class: 'muted small' }, t('A pasta é criada se não existir. O projeto aparece no Anthive e em Tasks.')));
+  const ok = await modal(t('Novo projeto'), body, [{ label: t('Cancelar'), value: null }, { label: t('Criar'), primary: true, run: () => true }]);
+  if (!ok || !name.value.trim()) return;
+  try {
+    const r = await rpc('dev.create', { name: name.value.trim(), dir: dir.value.trim() || null });
+    toast(r.existing ? `${t('Essa pasta já é o projeto')} ${r.project.name}.` : `${r.project.name} ${t('criado em')} ${r.project.cwd}`);
+    refresh();
+  } catch (e) { errorToast(e); }
+}
 
 export async function renderDev(main, state) {
   const refresh = () => renderDev(main, state);
   state.refresh = refresh;
   main.innerHTML = '';
-  mount(main, h('header', { class: 'view-head' }, h('h1', {}, t('Desenvolvimento'))), h('div', { class: 'muted' }, 'Lendo o Anthive…'));
+  mount(main, h('header', { class: 'view-head' }, h('h1', {}, t('Desenvolvimento')), h('div', { class: 'grow' }), h('button', { class: 'primary', onclick: () => newProject(refresh) }, `＋ ${t('Novo projeto')}`)), h('div', { class: 'muted' }, 'Lendo o Anthive…'));
   let v;
   try { v = await rpc('dev.status'); } catch (e) {
     main.lastChild.replaceWith(h('div', { class: 'empty' }, `Não consegui ler o Anthive: ${e.message}`));

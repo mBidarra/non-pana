@@ -544,3 +544,23 @@ async fn index_file_deleted_and_rebuilt_without_loss() {
     assert_eq!(ids(&call(&svc, "search", json!({"q": "precificacao"})).await), ids(&before.0));
     assert_eq!(ids(&call(&svc, "search", json!({"q": "ativacao"})).await), ids(&before.1));
 }
+
+#[tokio::test]
+async fn reextract_replaces_pasted_material_without_new_agent_turn() {
+    let (_d, svc, base) = setup().await;
+    let id = call(&svc, "thread.create", json!({"text": "reler", "links": [format!("{base}/artigo")]})).await["id"].as_str().unwrap().to_string();
+    jobs::drain(&svc).await;
+    call(&svc, "thread.paste", json!({"id": id, "index": 0, "text": "texto colado à mão"})).await;
+    jobs::drain(&svc).await;
+    let snap = svc.vault.thread_dir(&id).join("snapshot-0.md");
+    assert_eq!(std::fs::read_to_string(&snap).unwrap(), "texto colado à mão");
+    let v = call(&svc, "thread.reextract", json!({"id": id})).await;
+    assert_eq!(v["material"][0]["status"], "pending");
+    jobs::drain(&svc).await;
+    assert!(std::fs::read_to_string(&snap).unwrap().contains("Mostre valor antes de pedir o cadastro"), "o material volta a ser a página");
+    let st = svc.thread(&id).unwrap();
+    assert_eq!(st.material[0].status, "ok");
+    assert!(!st.posts.iter().any(|p| p.is_agent), "sem agente ligado, extrair de novo não gera resposta");
+    let solo = call(&svc, "thread.create", json!({"text": "só texto"})).await["id"].as_str().unwrap().to_string();
+    assert!(rpc::call(&svc, "thread.reextract", json!({"id": solo})).await.is_err());
+}

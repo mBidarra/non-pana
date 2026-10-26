@@ -194,6 +194,9 @@ async fn extract(svc: &Service, thread: &str, index: usize, last: bool) -> Resul
             atomic_write(&dir.join(&snap), e.markdown.as_bytes())?;
             if let Some(html) = &e.html {
                 atomic_write(&dir.join(format!("snapshot-{index}.html")), html.as_bytes())?;
+            } else {
+                // extração de novo sem HTML (ex.: transcrição): o HTML antigo não descreve mais o material
+                let _ = fs::remove_file(dir.join(format!("snapshot-{index}.html")));
             }
             let nm = Material {
                 url: m.url.clone(),

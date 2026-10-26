@@ -85,7 +85,7 @@ export function threadCard(c, { onChange, selected } = {}) {
     onclick: async (e) => { e.stopPropagation(); try { await rpc('thread.read', { id: c.id, read: !c.read }); onChange?.(); } catch (er) { errorToast(er); } },
   }, c.read ? '✓ Li' : 'Li');
   const more = h('button', { class: 'icon', 'aria-label': 'Mais ações', title: 'Mais ações', onclick: (e) => { e.stopPropagation(); threadMenu(more, c.id, { onChange }); } }, '⋯');
-  return h('article', { class: `card ${selected ? 'selected' : ''} ${c.ignored ? 'ignored' : ''}`, tabindex: 0, 'data-id': c.id, onclick: () => (location.hash = `#/t/${c.id}`) },
+  return h('article', { class: `card ${selected ? 'selected' : ''} ${c.ignored ? 'ignored' : ''}`, tabindex: 0, 'data-id': c.id, 'data-kind': c.kind, onclick: () => (location.hash = `#/t/${c.id}`) },
     h('div', { class: 'card-head' },
       h('span', { class: 'kind', title: t(KIND_LABEL[c.kind]) }, KIND[c.kind]),
       h('span', { class: 'muted small' }, ago(c.created)),
@@ -192,6 +192,9 @@ export async function renderFeed(main, state) {
   state.filter ??= 'all';
   main.innerHTML = '';
   const list = h('div', { class: 'feed', role: 'feed', 'aria-label': 'Feed' });
+  const stats = h('dl', { class: 'kv' });
+  const queue = h('dl', { class: 'kv' });
+  const kv = (el, rows) => { el.innerHTML = ''; rows.forEach(([k, v]) => el.append(h('dt', {}, k), h('dd', {}, v))); };
   const refresh = async () => {
     const f = FILTERS.find((x) => x[0] === state.filter)[2];
     let cards = [];
@@ -200,20 +203,29 @@ export async function renderFeed(main, state) {
     if (!cards.length) list.append(h('div', { class: 'empty' }, state.filter === 'all' ? 'Nada publicado ainda. Comece pelo que está lendo agora.' : 'Nada aqui.'));
     cards.forEach((c, i) => list.append(threadCard(c, { onChange: refresh, selected: i === state.sel })));
     state.cards = cards;
+    const n = (f) => String(cards.filter(f).length);
+    kv(stats, [[t('threads'), String(cards.length)], [`💭 ${t('pensando')}`, n((c) => c.kind === 'thinking')], [`📖 ${t('lendo')}`, n((c) => c.kind === 'reading')], [`👀 ${t('vendo')}`, n((c) => c.kind === 'watching')],
+      [t('sem Li'), n((c) => c.has_material && !c.read)], [t('ignoradas'), n((c) => c.ignored)]]);
+    const jobs = await rpc('queue.list').catch(() => []);
+    kv(queue, [[t('na fila'), String(jobs.length)], [t('respondendo'), n((c) => ['queued', 'reading', 'replying'].includes(c.agent_state))], [t('falharam'), n((c) => c.agent_state === 'failed')]]);
   };
   state.refresh = refresh;
   const projects = await rpc('project.list').catch(() => []);
   const comp = composer(() => { refresh(); toast('Publicada.'); });
   state.composer = comp;
-  mount(main, 
-    h('header', { class: 'view-head' }, h('h1', {}, t('Rede Social'))),
-    comp,
-    h('div', { class: 'filters' },
-      FILTERS.map(([k, label]) => h('button', { class: `chip-btn ${state.filter === k ? 'on' : ''}`, onclick: () => { state.filter = k; renderFeed(main, state); } }, t(label))),
-      h('div', { class: 'grow' }),
-      h('select', { 'aria-label': 'Filtrar por projeto', onchange: (e) => { state.project = e.target.value || null; refresh(); } },
-        h('option', { value: '' }, 'Todos os projetos'), projects.map((p) => h('option', { value: p.project.id, selected: state.project === p.project.id }, p.project.name)))),
-    list);
+  mount(main, h('div', { class: 'wide-view split' },
+    h('div', { class: 'col' },
+      h('header', { class: 'view-head' }, h('div', {}, h('div', { class: 'eyebrow' }, t('espaço')), h('h1', {}, t('Rede Social')))),
+      comp,
+      list),
+    h('aside', { class: 'side' },
+      h('div', { class: 'panel' }, h('span', { class: 'panel-label' }, t('filtro')),
+        h('div', { class: 'filters' },
+          FILTERS.map(([k, label]) => h('button', { class: `chip-btn ${state.filter === k ? 'on' : ''}`, onclick: () => { state.filter = k; renderFeed(main, state); } }, t(label)))),
+        h('select', { class: 'wide', style: { marginTop: '.7rem' }, 'aria-label': 'Filtrar por projeto', onchange: (e) => { state.project = e.target.value || null; refresh(); } },
+          h('option', { value: '' }, 'Todos os projetos'), projects.map((p) => h('option', { value: p.project.id, selected: state.project === p.project.id }, p.project.name)))),
+      h('div', { class: 'panel violet' }, h('span', { class: 'panel-label' }, t('panorama')), stats),
+      h('div', { class: 'panel cyan' }, h('span', { class: 'panel-label' }, t('agente')), queue))));
   await refresh();
 }
 
@@ -284,31 +296,36 @@ export async function renderThread(main, id, state) {
   } }, ['off', 'summary', 'opinion', 'both'].map((m) => h('option', { value: m, selected: v.agent === m }, `Agente: ${t({ off: 'desligado', summary: 'resumo', opinion: 'opinião', both: 'os dois' }[m])}`)));
   const profSel = h('select', { 'aria-label': 'Perfil' }, profiles.map((p) => h('option', { value: p.name, selected: (v.profile || profiles.find((x) => x.default)?.name) === p.name }, p.label || p.name)));
   const more = h('button', { class: 'icon', 'aria-label': 'Mais ações', onclick: () => threadMenu(more, id, { onChange: refresh, parent: v.superthread }) }, '⋯');
+  const material = v.material.map((m, i) => h('div', {},
+    materialCard(m, id),
+    m.status === 'failed' ? h('button', { class: 'link small', onclick: async () => {
+      const ta = h('textarea', { rows: 8, class: 'wide', placeholder: 'Cole aqui o texto do material' });
+      const ok = await modal('Colar o texto do material', ta, [{ label: 'Cancelar', value: false }, { label: 'Salvar', primary: true, value: true }]);
+      if (ok && ta.value.trim()) { await rpc('thread.paste', { id, index: i, text: ta.value }).catch(errorToast); refresh(); }
+    } }, 'Colar o texto à mão') : null));
+  const links = [
+    v.superthread ? h('a', { class: 'chip st', href: `#/st/${v.superthread}` }, `⧉ ${v.superthread_title}`) : null,
+    v.relations.map((r) => h('span', { class: `chip ${r.type}` }, h('a', { href: r.type === 'project' ? `#/tasks/p/${r.id}` : `#/tasks/k/${r.id}` }, `${r.type === 'project' ? '▣' : '☐'} ${r.title}`),
+      h('button', { class: 'x', title: 'Desfazer vínculo', onclick: async () => { await rpc('unrelate', { a: id, b: r.id }).catch(errorToast); refresh(); } }, '×'))),
+  ].flat().filter(Boolean);
   main.innerHTML = '';
-  mount(main, 
+  mount(main, h('div', { class: 'wide-view' },
     h('header', { class: 'view-head' },
       h('a', { href: '#/feed', class: 'back' }, '← Feed'),
       h('div', { class: 'grow' }),
       h('button', { class: `li ${v.read ? 'on' : ''}`, onclick: async () => { await rpc('thread.read', { id, read: !v.read }).catch(errorToast); refresh(); } }, v.read ? '✓ Li' : 'Marcar Li'),
       v.chat ? h('button', { class: 'icon', title: 'Chat sobre a thread', onclick: () => openChat(id) }, '💬') : null,
       more),
+    h('div', { class: 'split' },
     h('div', { class: 'thread' },
       h('div', { class: 'card-head' }, h('span', { class: 'kind' }, KIND[v.kind]), h('span', { class: 'muted small' }, `${t(KIND_LABEL[v.kind])} · ${ago(v.created)} · ${v.source}`), v.private ? h('span', {}, ' 🔒') : null, agentBadge(v)),
-      v.material.map((m, i) => h('div', {},
-        materialCard(m, id),
-        m.status === 'failed' ? h('button', { class: 'link small', onclick: async () => {
-          const ta = h('textarea', { rows: 8, class: 'wide', placeholder: 'Cole aqui o texto do material' });
-          const ok = await modal('Colar o texto do material', ta, [{ label: 'Cancelar', value: false }, { label: 'Salvar', primary: true, value: true }]);
-          if (ok && ta.value.trim()) { await rpc('thread.paste', { id, index: i, text: ta.value }).catch(errorToast); refresh(); }
-        } }, 'Colar o texto à mão') : null)),
-      h('div', { class: 'chips' },
-        v.superthread ? h('a', { class: 'chip st', href: `#/st/${v.superthread}` }, `⧉ ${v.superthread_title}`) : null,
-        v.relations.map((r) => h('span', { class: `chip ${r.type}` }, h('a', { href: r.type === 'project' ? `#/tasks/p/${r.id}` : `#/tasks/k/${r.id}` }, `${r.type === 'project' ? '▣' : '☐'} ${r.title}`),
-          h('button', { class: 'x', title: 'Desfazer vínculo', onclick: async () => { await rpc('unrelate', { a: id, b: r.id }).catch(errorToast); refresh(); } }, '×')))),
       v.posts.map((p) => post(p, id, setReply)),
       v.agent_state === 'failed' ? h('div', { class: 'notice' }, `O agente falhou: ${v.agent_detail || ''} `, h('button', { onclick: async () => { await rpc('thread.retry', { id }).catch(errorToast); refresh(); } }, 'Tentar de novo')) : null,
-      h('div', { class: 'reply-box' }, replyHint, replyTxt, h('div', { class: 'compose-bar' }, agentSel, profSel, h('div', { class: 'grow' }), h('button', { class: 'primary', onclick: sendReply }, t('Responder')))),
-      boxPanel(id, v.box, refresh)));
+      h('div', { class: 'reply-box' }, replyHint, replyTxt, h('div', { class: 'compose-bar' }, agentSel, profSel, h('div', { class: 'grow' }), h('button', { class: 'primary', onclick: sendReply }, t('Responder'))))),
+    h('aside', { class: 'side' },
+      material.length ? h('div', { class: 'panel cyan' }, h('span', { class: 'panel-label' }, `${t('material')} (${material.length})`), material) : null,
+      links.length ? h('div', { class: 'panel violet' }, h('span', { class: 'panel-label' }, `${t('vínculos')} (${links.length})`), h('div', { class: 'chips' }, links)) : null,
+      v.box ? h('div', { class: 'panel green' }, h('span', { class: 'panel-label' }, t('memória')), boxPanel(id, v.box, refresh)) : null))));
 }
 
 // ------------------------------------------------------------------ superthread (RF-SUP-06 a 11)

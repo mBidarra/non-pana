@@ -41,6 +41,6 @@ export async function renderDev(main, state) {
     p.needs?.length ? h('div', { class: 'notice small' }, p.needs.map((n) => h('div', {}, n.text))) : null);
   main.lastChild.replaceWith(h('div', {},
     h('p', { class: 'muted small' }, `${a.running} agente(s) rodando · ${a.needs} pedido(s) esperando você`, a.at ? ` · atualizado ${ago(new Date(a.at).toISOString())} atrás` : '', a.limits ? ` · janela de 5 h em ${Math.round(a.limits.fiveHour * 100)}%` : ''),
-    (a.projects || []).map(proj),
+    h('div', { class: 'dev-grid' }, (a.projects || []).map(proj)),
     h('button', { onclick: refresh }, 'Atualizar')));
 }

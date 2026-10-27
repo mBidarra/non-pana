@@ -149,7 +149,7 @@ async fn openrouter(p: &Profile, req: &Request) -> Result<Response> {
             .post(format!("{}/chat/completions", base.trim_end_matches('/')))
             .bearer_auth(&secret)
             .header("HTTP-Referer", "https://github.com/andre2654/anthive")
-            .header("X-Title", "Anthive Novo")
+            .header("X-Title", "Non Pana")
             .json(b)
             .send()
     };

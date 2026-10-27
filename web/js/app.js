@@ -1,4 +1,4 @@
-// Anthive Novo: roteador, barra lateral, atalhos de teclado (RNF-18), paleta ⌘K (RF-BUS-04) e eventos ao vivo.
+// Non Panã: roteador, barra lateral, atalhos de teclado (RNF-18), paleta ⌘K (RF-BUS-04) e eventos ao vivo.
 import { rpc, events, token } from './api.js';
 import { h, mount, toast, errorToast, KIND, t } from './ui.js';
 import { renderFeed, renderThread, renderSuperthread, loadProfiles, openPicker, threadMenu, openChat, composer } from './feed.js';
@@ -21,7 +21,7 @@ function sidebar() {
   let hash = location.hash || '#/feed';
   if (hash.startsWith('#/t/') || hash.startsWith('#/st/')) hash = '#/feed';
   mount(nav, 
-    h('div', { class: 'brand' }, h('span', { class: 'logo' }, '⬡'), h('span', {}, 'Anthive ', h('strong', {}, 'Novo'))),
+    h('div', { class: 'brand' }, h('span', { class: 'logo' }, '⬡'), h('span', {}, 'Non ', h('strong', {}, 'Panã'))),
     h('div', { class: 'nav-label' }, t('espaços')),
     NAV.map(([href, icon, label, sp]) => h('a', { href, class: `${sp} ${hash.startsWith(href.split('/').slice(0, 2).join('/')) ? 'on' : ''}` }, h('span', { class: 'ico' }, icon), t(label))),
     h('div', { class: 'grow' }),
@@ -49,7 +49,7 @@ async function route() {
     return;
   }
   document.body.classList.remove('compact');
-  if (!token()) { main.innerHTML = ''; mount(main, h('div', { class: 'empty' }, h('h2', {}, 'Abra o Novo pelo app ou por `novo open`'), h('p', {}, 'Esta página precisa do token local do novod.'))); return; }
+  if (!token()) { main.innerHTML = ''; mount(main, h('div', { class: 'empty' }, h('h2', {}, 'Abra o Non Panã pelo app ou por `novo open`'), h('p', {}, 'Esta página precisa do token local do novod.'))); return; }
   sidebar();
   document.querySelectorAll('.popover').forEach((p) => p.remove());
   const parts = (location.hash || '#/feed').slice(2).split('/');

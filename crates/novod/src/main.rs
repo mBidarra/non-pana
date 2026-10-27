@@ -1,4 +1,4 @@
-//! `novod`: o daemon do Anthive Novo. Único escritor do cofre; serve HTTP local, socket Unix e roda os agentes.
+//! `novod`: o daemon do Non Panã. Único escritor do cofre; serve HTTP local, socket Unix e roda os agentes.
 
 use anyhow::Result;
 use novo_core::Vault;

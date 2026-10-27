@@ -108,7 +108,7 @@ impl Default for Ingest {
             timeout_secs: 20,
             max_bytes: 20 * 1024 * 1024,
             retries: 3,
-            user_agent: "AnthiveNovo/0.1 (+https://github.com/andre2654/anthive)".into(),
+            user_agent: "NonPana/0.1 (+https://github.com/andre2654/anthive)".into(),
             chrome_fallback: true,
             transcript_url: "http://127.0.0.1:8790/transcript".into(),
             transcript_timeout_secs: 120,

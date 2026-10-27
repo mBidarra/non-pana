@@ -1,4 +1,4 @@
-//! Núcleo do Anthive Novo: cofre, formatos de arquivo e modelo de domínio.
+//! Núcleo do Non Panã: cofre, formatos de arquivo e modelo de domínio.
 //! Ver `docs/DECISIONS.md` para o contrato de formatos.
 
 pub mod config;

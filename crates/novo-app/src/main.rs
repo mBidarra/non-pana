@@ -1,4 +1,4 @@
-//! Novo.app (Tauri 2): janela dos espaços servida pelo `novod`, ícone na barra de menus e atalho global
+//! Non Panã.app (Tauri 2): janela dos espaços servida pelo `novod`, ícone na barra de menus e atalho global
 //! ⌘⇧N para publicar com o link do clipboard (RF-PUB-05). Toda a lógica fica no daemon; o app é fino (ADR "Interface").
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
@@ -89,7 +89,7 @@ fn open_compose(app: &AppHandle, url: &str) {
     let handle = app.clone();
     let close_url = format!("{}__close", base_of(url));
     let built = WebviewWindowBuilder::new(app, "compose", WebviewUrl::External(target.parse().expect("url")))
-        .title("Publicar no Novo")
+        .title("Publicar no Non Panã")
         .inner_size(560.0, 300.0)
         .resizable(false)
         .always_on_top(true)
@@ -139,11 +139,11 @@ fn main() {
         )
         .setup(move |app| {
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url.parse().expect("url")))
-                .title("Anthive Novo")
+                .title("Non Panã")
                 .inner_size(1240.0, 820.0)
                 .min_inner_size(420.0, 500.0)
                 .build()?;
-            let open = MenuItem::with_id(app, "open", "Abrir o Novo", true, None::<&str>)?;
+            let open = MenuItem::with_id(app, "open", "Abrir o Non Panã", true, None::<&str>)?;
             let compose = MenuItem::with_id(app, "compose", "Publicar rápido (⌘⇧N)", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "Sair", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&open, &compose, &quit])?;
@@ -152,7 +152,7 @@ fn main() {
             TrayIconBuilder::with_id("novo")
                 .icon(tray_icon)
                 .icon_as_template(true)
-                .tooltip("Anthive Novo")
+                .tooltip("Non Panã")
                 .menu(&menu)
                 .on_menu_event(move |app, ev| match ev.id().as_ref() {
                     "open" => show_main(app),
@@ -167,7 +167,7 @@ fn main() {
             Ok(())
         })
         .on_window_event(|w, ev| {
-            // fechar a janela só esconde: o Novo continua na barra de menus
+            // fechar a janela só esconde: o Non Panã continua na barra de menus
             if let WindowEvent::CloseRequested { api, .. } = ev {
                 let _ = w.hide();
                 api.prevent_close();
@@ -179,5 +179,5 @@ fn main() {
             }
         })
         .run(tauri::generate_context!())
-        .expect("erro ao rodar o Novo.app");
+        .expect("erro ao rodar o Non Panã.app");
 }

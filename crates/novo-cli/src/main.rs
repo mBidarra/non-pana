@@ -1,4 +1,4 @@
-//! `novo`: CLI do Anthive Novo (RF-PUB-06, RF-FOC-07) e servidor MCP (`novo mcp`).
+//! `novo`: CLI do Non Panã (RF-PUB-06, RF-FOC-07) e servidor MCP (`novo mcp`).
 
 mod client;
 mod doctor;
@@ -13,7 +13,7 @@ use serde_json::{Value, json};
 use std::io::Read;
 
 #[derive(Parser)]
-#[command(name = "novo", version, about = "Anthive Novo: Rede Social, Tasks, Sessão Foco e Observabilidade, local.")]
+#[command(name = "novo", version, about = "Non Panã: Rede Social, Tasks, Sessão Foco e Observabilidade, local.")]
 struct Cli {
     /// Saída em JSON
     #[arg(long, global = true)]

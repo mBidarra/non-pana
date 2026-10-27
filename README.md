@@ -1,4 +1,4 @@
-# Anthive Novo
+# Non Panã
 
 Um ambiente local, em Rust, para macOS, com quatro espaços: **Rede Social** (você publica o que pensa, lê ou vê, e um agente responde em thread quando você pede), **Tasks** (como no Todoist), **Observabilidade** (o que só foi ignorado) e **Desenvolvimento** (o Anthive como está). Toda meia-noite (GMT-3) a **Sessão Foco** lê o dia e alimenta a Observabilidade.
 

@@ -1,4 +1,4 @@
-# Anthive Novo — contrato de decisões
+# Non Panã — contrato de decisões
 
 Fonte da verdade do produto: a especificação "Anthive Novo — Especificação de Requisitos de Software"
 (https://claude.ai/artifact/PwVDs6vW8kqaDVketELx7H). Este arquivo fixa as decisões transversais da

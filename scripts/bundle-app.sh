@@ -1,5 +1,5 @@
 #!/bin/sh
-# Empacota o Novo.app com o novod e o novo dentro (sidecars do Tauri).
+# Empacota o Non Panã.app com o novod e o novo dentro (sidecars do Tauri).
 set -e
 cd "$(dirname "$0")/.."
 TRIPLE=$(rustc -vV | sed -n 's/^host: //p')
@@ -16,6 +16,6 @@ else
 fi
 # o Tauri só assina os binários (linker-signed); sem assinar o pacote, `codesign -v` falha e o Gatekeeper reclama
 cd ../..
-codesign --force --deep -s - "target/release/bundle/macos/Anthive Novo.app"
+codesign --force --deep -s - "target/release/bundle/macos/Non Panã.app"
 echo "App em target/release/bundle/macos/ (na raiz do workspace). Para instalar:"
-echo "  ditto \"target/release/bundle/macos/Anthive Novo.app\" \"/Applications/Anthive Novo.app\""
+echo "  ditto \"target/release/bundle/macos/Non Panã.app\" \"/Applications/Non Panã.app\""

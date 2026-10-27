@@ -1,5 +1,5 @@
 #!/bin/sh
-# Compila o Anthive Novo em modo release e instala `novo` e `novod` em ~/.local/bin.
+# Compila o Non Panã em modo release e instala `novo` e `novod` em ~/.local/bin.
 set -e
 cd "$(dirname "$0")"
 cargo build --release -p novo -p novod

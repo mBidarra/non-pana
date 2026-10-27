@@ -310,7 +310,7 @@ pub fn notify(title: &str, text: &str) {
         return;
     }
     let esc = |s: &str| s.replace('\\', "").replace('"', "'");
-    let _ = std::process::Command::new("osascript").arg("-e").arg(format!("display notification \"{}\" with title \"Anthive Novo\" subtitle \"{}\"", esc(text), esc(title))).spawn();
+    let _ = std::process::Command::new("osascript").arg("-e").arg(format!("display notification \"{}\" with title \"Non Panã\" subtitle \"{}\"", esc(text), esc(title))).spawn();
 }
 
 /// RF-TSK-11: notificação no prazo (data com hora: na hora; só data: às 09:00 GMT-3).

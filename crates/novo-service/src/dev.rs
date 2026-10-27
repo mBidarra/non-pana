@@ -190,7 +190,7 @@ pub async fn anthive_tool(anthive_project: &str, cwd: &str, tool: &str, args: Va
     let mut stdin = child.stdin.take().context("stdin")?;
     let mut lines = BufReader::new(child.stdout.take().context("stdout")?).lines();
     let msgs = [
-        json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "anthive-novo", "version": "0.1.0"}}}),
+        json!({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "non-pana", "version": "0.1.0"}}}),
         json!({"jsonrpc": "2.0", "method": "notifications/initialized"}),
         json!({"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": tool, "arguments": args}}),
     ];
@@ -236,7 +236,7 @@ pub async fn note(svc: &Service, item: &str, project: &str) -> Result<Value> {
     }
     let b = novo_memory::load_box(&svc.vault, item)?.map(|b| b.full()).unwrap_or_default();
     let title = views::title_of(svc, item);
-    let text = format!("{b}\n\nOrigem: Anthive Novo ({item}).");
+    let text = format!("{b}\n\nOrigem: Non Panã ({item}).");
     let out = anthive_tool(&aid, &dir, "note_write", json!({"title": clip(&title, 80), "text": text})).await?;
     Ok(json!({"result": out}))
 }
@@ -271,7 +271,7 @@ pub fn briefing(svc: &Service, task: &str) -> Result<String> {
             ctx.push_str(&format!("\n- {x}: {}", b.l1(300)));
         }
     }
-    let mut s = format!("Tarefa vinda do Anthive Novo: {}\n", t.head.title);
+    let mut s = format!("Tarefa vinda do Non Panã: {}\n", t.head.title);
     if !t.description.trim().is_empty() {
         s.push_str(&format!("\n{}\n", t.description.trim()));
     }

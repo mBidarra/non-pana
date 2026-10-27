@@ -1,73 +1,73 @@
 # Non Panã
 
-Um ambiente local, em Rust, para macOS, com quatro espaços: **Rede Social** (você publica o que pensa, lê ou vê, e um agente responde em thread quando você pede), **Tasks** (como no Todoist), **Observabilidade** (o que só foi ignorado) e **Desenvolvimento** (o Anthive como está). Toda meia-noite (GMT-3) a **Sessão Foco** lê o dia e alimenta a Observabilidade.
+A local environment for macOS, written in Rust, with four spaces: **Social** (*Rede Social*: you post what you are thinking, reading or watching, and an agent replies in the thread when you ask), **Tasks** (like Todoist), **Observability** (*Observabilidade*: what you simply ignored) and **Development** (*Desenvolvimento*: Anthive as it is). Every midnight (GMT-3) the **Focus Session** (*Sessão Foco*) reads the day and feeds Observability.
 
-Especificação: [Anthive Novo — Especificação de Requisitos de Software](https://claude.ai/artifact/PwVDs6vW8kqaDVketELx7H). Decisões de implementação: [`docs/DECISIONS.md`](docs/DECISIONS.md).
+Specification: [Anthive Novo — Especificação de Requisitos de Software](https://claude.ai/artifact/PwVDs6vW8kqaDVketELx7H) (in Portuguese). Implementation decisions: [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
-## Como está organizado
+## How it is organized
 
-| Peça | O que faz |
+| Piece | What it does |
 | --- | --- |
-| `novod` | Daemon: único escritor do cofre, fila de jobs, agentes, Sessão Foco, HTTP local (127.0.0.1 + token) e socket Unix |
-| `novo` | CLI (`post`, `feed`, `foco`, `task add`, `search`, `doctor`, `install-mcp`, `install-daemon`, `open`) e o servidor MCP (`novo mcp`) |
-| `Novo.app` | App Tauri 2: janela dos espaços, ícone na barra de menus, atalho global ⌘⇧N para publicar com o link do clipboard |
-| `web/` | A interface (JavaScript puro, sem build), servida pelo `novod` |
-| `crates/novo-*` | Núcleo, grafo, caixas de memória, índice SQLite/FTS5, extração, agentes, Sessão Foco, serviço |
+| `novod` | Daemon: the vault's only writer, job queue, agents, Focus Session, local HTTP (127.0.0.1 + token) and a Unix socket |
+| `novo` | CLI (`post`, `feed`, `foco`, `task add`, `search`, `doctor`, `install-mcp`, `install-daemon`, `open`) and the MCP server (`novo mcp`) |
+| `Non Panã.app` | Tauri 2 app: the spaces window, a menu bar icon, and a global ⌘⇧N shortcut to post with the link on the clipboard |
+| `web/` | The interface (plain JavaScript, no build step), served by `novod` |
+| `crates/novo-*` | Core, graph, memory boxes, SQLite/FTS5 index, extraction, agents, Focus Session, service |
 
-O cofre fica em `~/.anthive/novo/` (ou `NOVO_HOME`): threads em JSONL só com acréscimo, caixas de memória, tarefas e anotações em markdown (abrem no Obsidian), `graph.jsonl` com as relações que você cria e um índice SQLite que pode ser apagado e reconstruído (`novo reindex`).
+The vault lives in `~/.anthive/novo/` (or `NOVO_HOME`): append-only JSONL threads, memory boxes, tasks and notes in Markdown (they open in Obsidian), `graph.jsonl` with the relations you create, and a SQLite index that can be deleted and rebuilt (`novo reindex`).
 
-## Instalar a partir do código
+## Install from source
 
-Precisa de Rust (1.85 ou mais novo) e, para o agente padrão, do [Claude Code](https://docs.anthropic.com/en/docs/claude-code) logado.
+Requires Rust (1.85 or newer) and, for the default agent, a logged-in [Claude Code](https://docs.anthropic.com/en/docs/claude-code).
 
 ```bash
 ./install.sh
 ```
 
-Ele compila em modo release, copia `novo` e `novod` para `~/.local/bin` e roda `novo doctor`. Depois:
+It builds in release mode, copies `novo` and `novod` to `~/.local/bin` and runs `novo doctor`. Then:
 
 ```bash
-novo install-daemon --load        # o novod sobe sozinho com o Mac (LaunchAgent)
-novo install-mcp --claude-desktop # o Claude Desktop passa a ver o Novo
-novo open                         # abre a interface no navegador
+novo install-daemon --load        # novod starts with the Mac (LaunchAgent)
+novo install-mcp --claude-desktop # Claude Desktop can see Non Panã
+novo open                         # opens the interface in the browser
 ```
 
-O app (`Novo.app`) é empacotado com `npx @tauri-apps/cli build --bundles app` dentro de `crates/novo-app` (veja `scripts/bundle-app.sh`).
+The app (`Non Panã.app`) is bundled with `npx @tauri-apps/cli build --bundles app` inside `crates/novo-app` (see `scripts/bundle-app.sh`).
 
-## Vídeos do YouTube
+## YouTube videos
 
-A página de um vídeo só traz a descrição. Para o agente ler o que foi falado, o `novod` pede a transcrição a um serviço local (`services/yt-transcript`, Python, só em 127.0.0.1) e guarda o texto como material da thread, não no chat:
+A video page only carries the description. So the agent can read what was said, `novod` asks a local service (`services/yt-transcript`, Python, 127.0.0.1 only) for the transcript and stores the text as the thread's material, not in the chat:
 
 ```bash
-services/yt-transcript/install.sh   # venv em ~/.local/share/novo-yt-transcript + LaunchAgent com.anthive.novo-yt
+services/yt-transcript/install.sh   # venv in ~/.local/share/novo-yt-transcript + LaunchAgent com.anthive.novo-yt
 curl -s -X POST 127.0.0.1:8790/transcript -d '{"url":"https://youtu.be/<id>"}'
 ```
 
-Ele tenta a `youtube-transcript-api` e, se falhar, o `yt-dlp`; prefere legenda feita por pessoa e guarda cache em `~/Library/Caches/novo-yt-transcript`. Sem o serviço, o material diz que a transcrição faltou. Endereço em `config.toml` (`[ingest] transcript_url`, vazio desliga). O YouTube bloqueia IPs de nuvem com frequência: o serviço foi pensado para rodar no seu Mac. Quando ele parar de funcionar, rode o `install.sh` de novo para atualizar as bibliotecas.
+It tries `youtube-transcript-api` and falls back to `yt-dlp`; it prefers human-made captions and caches in `~/Library/Caches/novo-yt-transcript`. Without the service, the material says the transcript is missing. The address is in `config.toml` (`[ingest] transcript_url`; empty turns it off). YouTube often blocks cloud IPs, so the service is meant to run on your Mac. When it stops working, run `install.sh` again to update the libraries.
 
-## Agentes
+## Agents
 
-Por padrão, o agente é o próprio Claude Code (`claude -p`) na sua assinatura, sem ferramentas e sem sessão salva, com o contexto montado a partir do JSONL da thread e das **caixas de memória** das threads que você relacionou. Outros perfis ficam em `~/.anthive/novo/profiles.toml` ou na tela Configurações:
+By default the agent is Claude Code itself (`claude -p`) on your subscription, with no tools and no saved session, and with context built from the thread's JSONL and the **memory boxes** of the threads you related to it. Other profiles go in `~/.anthive/novo/profiles.toml` or on the Settings screen (*Configurações*):
 
 ```toml
 [[profile]]
 name = "gpt-via-openrouter"
 engine = "openrouter_http"     # claude_code | openrouter_http | anthropic_api | ollama
-model = "openai/<modelo>"
+model = "openai/<model>"
 auth = "openrouter"
-key = "keychain:novo-openrouter"   # o segredo fica no Keychain: novo key novo-openrouter < chave.txt
+key = "keychain:novo-openrouter"   # the secret lives in the Keychain: novo key novo-openrouter < key.txt
 ```
 
-Tudo que um agente faz fica no diário (`agent/runs/AAAA-MM-DD.jsonl`, tela Diário do agente): perfil, modelo, tokens, custo, caixas usadas e tamanho do que foi enviado.
+Everything an agent does goes to the journal (`agent/runs/YYYY-MM-DD.jsonl`, the Agent Journal screen, *Diário do agente*): profile, model, tokens, cost, boxes used and the size of what was sent.
 
-## Testes
+## Tests
 
 ```bash
 cargo test --workspace
 ```
 
-Os testes rodam com cofres temporários e um `claude` falso (`crates/novo-service/tests/fixtures/fake_claude.py`), então não gastam a assinatura.
+The tests run against temporary vaults and a fake `claude` (`crates/novo-service/tests/fixtures/fake_claude.py`), so they don't spend your subscription.
 
 ## Status
 
-Versão 0.1. O relatório da entrega, critério por critério, está em [`docs/REPORT.md`](docs/REPORT.md).
+Version 0.1. The delivery report, criterion by criterion, is in [`docs/REPORT.md`](docs/REPORT.md) (in Portuguese).
